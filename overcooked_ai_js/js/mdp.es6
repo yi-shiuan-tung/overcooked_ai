@@ -488,6 +488,8 @@ export class OvercookedGridworld {
                         }
                         if (this.always_serve) {
                             new_state.order_list = [this.always_serve, ]
+                        } else {
+                            new_state.order_list.push(_.sample(["onion", "tomato"]));
                         }
                     }
                 }
@@ -661,18 +663,17 @@ export class OvercookedGridworld {
 
     static from_grid (grid, params) {
         grid = grid.map((r) => _.map(r, (c) => c));
-        let player_pos = [null, null];
+        let player_pos = [];
         for (let y = 0; y < grid.length; y++) {
             for (let x = 0; x < grid[0].length; x++) {
                 let c = grid[y][x];
                 if (_.includes(['1', '2'], c)) {
                     grid[y][x] = ' ';
-                    assert(player_pos[parseInt(c)-1] === null, "Duplicate player in grid");
-                    player_pos[parseInt(c)-1] = [x, y];
+                    player_pos[0] = [x, y];
                 }
             }
         }
-        assert(_.every(player_pos), 'A player was missing');
+        
         params = typeof(params) === 'undefined' ? {} : params;
         params = Object.assign({}, params, {
             terrain: grid,
