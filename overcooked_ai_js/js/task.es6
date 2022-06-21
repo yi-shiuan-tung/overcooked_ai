@@ -104,7 +104,7 @@ export class OvercookedGame {
                     let held_obj = chef.held_object;
                     if (typeof(held_obj) !== 'undefined') {
                         if (held_obj.name === 'soup') {
-                            held_obj = "-soup-"+held_obj.state[0];
+                            held_obj = "-soup-"+held_obj.state[0].split("-")[0];
                         }
                         else {
                             held_obj = "-"+held_obj.name;
@@ -174,7 +174,7 @@ export class OvercookedGame {
                     let cooktime = "";
                     if ((obj.name === 'soup') && (terrain_type === 'P')) {
                         [souptype, n_ingredients, cooktime] = obj.state;
-
+                        souptype = souptype.split("-")[0];
                         // select pot sprite
                         if (cooktime <= this.mdp.COOK_TIME) {
                             spriteframe =
@@ -221,6 +221,7 @@ export class OvercookedGame {
                     }
                     else if (obj.name === 'soup') {
                         [souptype, n_ingredients, cooktime] = obj.state;
+                        souptype = souptype.split("-")[0];
                         spriteframe = `soup-${souptype}-dish.png`;
                         let objsprite = this.add.sprite(
                             tileSize*x,

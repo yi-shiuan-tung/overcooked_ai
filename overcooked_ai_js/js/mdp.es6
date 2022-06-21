@@ -57,7 +57,7 @@ export class PlayerState {
         orientation,
         held_object = undefined
     }) {
-        assert(Array.isArray(position));
+        // assert(Array.isArray(position));
         // assert(orientation in Direction.ALL_DIRECTIONS)
         if (typeof(held_object) !== "undefined") {
             // assert(ObjectState.is_object(held_object));
@@ -150,7 +150,7 @@ export class ObjectState {
         })
     }
 }
-ObjectState.SOUP_TYPES = ['onion', 'tomato'];
+ObjectState.SOUP_TYPES = ['onion-onion-onion', 'onion-onion-tomato', 'onion-tomato-onion', 'onion-tomato-tomato', 'tomato-onion-onion', 'tomato-onion-tomato', 'tomato-tomato-onion', 'tomato-tomato-tomato'];
 
 export class OvercookedState {
     constructor ({
@@ -449,21 +449,25 @@ export class OvercookedGridworld {
                     }
                     else if (_.includes(['onion', 'tomato'], player.get_object().name)) {
                         let item_type = player.get_object().name;
+                        let recipe = new_state.order_list[0].split("-");
+                        console.log(recipe, item_type);
                         if (!new_state.has_object(i_pos)) {
-                            player.remove_object();
-                            new_state.add_object(
-                                new ObjectState({
-                                    name: 'soup',
-                                    position: i_pos,
-                                    state: [item_type, 1, 0]
-                                }),
-                                i_pos);
+                            if (recipe[0] === item_type) {
+                                player.remove_object();
+                                new_state.add_object(
+                                    new ObjectState({
+                                        name: 'soup',
+                                        position: i_pos,
+                                        state: [new_state.order_list[0], 1, 0]
+                                    }),
+                                    i_pos);
+                            }
                         }
                         else {
                             let obj = new_state.get_object(i_pos);
                             // assert(obj.name === 'soup', "Object in pot was not soup")
                             let [soup_type, num_items, cook_time] = obj.state;
-                            if ((num_items < this.num_items_for_soup) && soup_type === item_type) {
+                            if ((num_items < this.num_items_for_soup) && recipe[num_items] === item_type) {
                                 player.remove_object();
                                 obj.state = [soup_type, num_items + 1, 0];
                             }
@@ -489,7 +493,7 @@ export class OvercookedGridworld {
                         if (this.always_serve) {
                             new_state.order_list = [this.always_serve, ]
                         } else {
-                            new_state.order_list.push(_.sample(["onion", "tomato"]));
+                            new_state.order_list.push(_.sample(ObjectState.SOUP_TYPES));
                         }
                     }
                 }
@@ -663,17 +667,17 @@ export class OvercookedGridworld {
 
     static from_grid (grid, params) {
         grid = grid.map((r) => _.map(r, (c) => c));
-        let player_pos = [];
+        let player_pos = [null, null];
         for (let y = 0; y < grid.length; y++) {
             for (let x = 0; x < grid[0].length; x++) {
                 let c = grid[y][x];
                 if (_.includes(['1', '2'], c)) {
                     grid[y][x] = ' ';
-                    player_pos[0] = [x, y];
+                    player_pos[parseInt(c)-1] = [x, y];
                 }
             }
         }
-        
+        console.log(player_pos);
         params = typeof(params) === 'undefined' ? {} : params;
         params = Object.assign({}, params, {
             terrain: grid,
