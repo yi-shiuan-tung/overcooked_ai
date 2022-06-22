@@ -119,7 +119,7 @@ export class ObjectState {
         this.name = name;
         this.position = position;
         if (name === 'soup') {
-            assert(state.length === OvercookedGridworld.num_items_for_soup)
+            assert(state.length === 4);
         }
         this.state = state;
     }
@@ -134,11 +134,12 @@ export class ObjectState {
             return typeof(this.state) === 'undefined'
         }
         if (this.name === 'soup') {
-            let [soup_type, num_items, cook_time] = this.state;
+            let [soup_type, num_items, cook_time, items_in_pot] = this.state;
             let valid_soup_type = _.includes(ObjectState.SOUP_TYPES, soup_type);
             let valid_item_num = (1 <= num_items) && (num_items <= 3);
             let valid_cook_time = 0 <= cook_time;
-            return valid_soup_type && valid_item_num && valid_cook_time
+            let valid_items = num_items == items_in_pot.length;
+            return valid_soup_type && valid_item_num && valid_cook_time && valid_items;
         }
         return false
     }
@@ -441,7 +442,7 @@ export class OvercookedGridworld {
                     if ((player.get_object().name === 'dish') && (new_state.has_object(i_pos))) {
                         let obj = new_state.get_object(i_pos);
                         assert(obj.name === 'soup', "Object in pot was not soup");
-                        let [temp, num_items, cook_time] = obj.state;
+                        let [temp, num_items, cook_time, items_in_pot] = obj.state;
                         if ((num_items === this.num_items_for_soup) && (cook_time >= this.COOK_TIME)) {
                             player.remove_object(); //turnt he dish into the soup
                             player.set_object(new_state.remove_object(i_pos));
@@ -450,15 +451,14 @@ export class OvercookedGridworld {
                     else if (_.includes(['onion', 'tomato'], player.get_object().name)) {
                         let item_type = player.get_object().name;
                         let recipe = new_state.order_list[0].split("-");
-                        console.log(recipe, item_type);
                         if (!new_state.has_object(i_pos)) {
-                            if (recipe[0] === item_type) {
+                            if (_.includes(recipe, item_type)) {
                                 player.remove_object();
                                 new_state.add_object(
                                     new ObjectState({
                                         name: 'soup',
                                         position: i_pos,
-                                        state: [new_state.order_list[0], 1, 0]
+                                        state: [new_state.order_list[0], 1, 0, [item_type]]
                                     }),
                                     i_pos);
                             }
@@ -466,10 +466,15 @@ export class OvercookedGridworld {
                         else {
                             let obj = new_state.get_object(i_pos);
                             // assert(obj.name === 'soup', "Object in pot was not soup")
-                            let [soup_type, num_items, cook_time] = obj.state;
-                            if ((num_items < this.num_items_for_soup) && recipe[num_items] === item_type) {
+                            let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
+                            for (const item of items_in_pot) {
+                                const index = recipe.indexOf(item);
+                                recipe.splice(index, 1);
+                            }
+                            if ((num_items < this.num_items_for_soup) && _.includes(recipe,  item_type)) {
                                 player.remove_object();
-                                obj.state = [soup_type, num_items + 1, 0];
+                                items_in_pot.push(item_type);
+                                obj.state = [soup_type, num_items + 1, 0, items_in_pot];
                             }
                         }
                     }
@@ -477,7 +482,7 @@ export class OvercookedGridworld {
                 else if (terrain_type === 'S') {
                     let obj = player.get_object();
                     if (obj.name === 'soup') {
-                        let [soup_type, num_items, cook_time] = obj.state;
+                        let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
                         assert(_.includes(ObjectState.SOUP_TYPES, soup_type));
                         assert(num_items === this.num_items_for_soup &&
                                cook_time >= this.COOK_TIME &&
@@ -651,12 +656,12 @@ export class OvercookedGridworld {
             let obj = state.objects[pos];
             if (obj.name === 'soup') {
                 let [x, y] = obj.position;
-                let [soup_type, num_items, cook_time] = obj.state;
+                let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
                 if (
                         (this.terrain_mtx[y][x] === 'P') &&
                         (cook_time < this.explosion_time) &&
                         (num_items === this.num_items_for_soup)) {
-                    obj.state = [soup_type, num_items, Math.min(cook_time + 1, this.COOK_TIME)];
+                    obj.state = [soup_type, num_items, Math.min(cook_time + 1, this.COOK_TIME), items_in_pot];
                 }
                 if ((obj.state[2] === this.explosion_time) && (num_items === this.num_items_for_soup)) {
                     state.pot_explosion = true
@@ -677,7 +682,7 @@ export class OvercookedGridworld {
                 }
             }
         }
-        console.log(player_pos);
+        // console.log(player_pos);
         params = typeof(params) === 'undefined' ? {} : params;
         params = Object.assign({}, params, {
             terrain: grid,
