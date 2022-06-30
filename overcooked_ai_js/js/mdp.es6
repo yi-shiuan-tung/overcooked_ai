@@ -151,7 +151,7 @@ export class ObjectState {
         })
     }
 }
-ObjectState.SOUP_TYPES = ['onion-onion-onion', 'onion-onion-tomato', 'onion-tomato-onion', 'onion-tomato-tomato', 'tomato-onion-onion', 'tomato-onion-tomato', 'tomato-tomato-onion', 'tomato-tomato-tomato'];
+ObjectState.SOUP_TYPES = ['onion-onion-tomato', 'onion-tomato-tomato'];
 
 export class OvercookedState {
     constructor ({
@@ -419,7 +419,7 @@ export class OvercookedGridworld {
             let terrain_type = this.get_terrain_type_at(i_pos);
 
             if (terrain_type === 'X') {
-                if (player.has_object() && !new_state.has_object(i_pos)) {
+                if (player.has_object()) {
                     new_state.add_object(player.remove_object(), i_pos);
                 }
                 else if (!player.has_object() && new_state.has_object(i_pos)) {
