@@ -209,7 +209,7 @@ export class OvercookedState {
         if (typeof(pos) === 'undefined') {
             pos = obj.position
         }
-        assert(!this.has_object(pos));
+        // assert(!this.has_object(pos));
         obj.position = pos;
         this.objects[pos] = obj;
     }
