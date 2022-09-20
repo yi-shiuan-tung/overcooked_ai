@@ -22,13 +22,17 @@ export class OvercookedGame {
         COOK_TIME = 2,
         explosion_time = Number.MAX_SAFE_INTEGER,
         DELIVERY_REWARD = OvercookedMDP.OvercookedGridworld.DELIVERY_REWARD,
-        always_serve = false
+        always_serve = false,
+        grid_name = "none",
+        condition = "none"
     }){
         this.gameWidth = gameWidth;
         this.gameHeight = gameHeight;
         this.container_id = container_id;
         let params = {COOK_TIME, explosion_time, DELIVERY_REWARD, always_serve};
         this.mdp = OvercookedMDP.OvercookedGridworld.from_grid(start_grid, params);
+        this.mdp.grid_name = grid_name;
+        this.mdp.condition = condition;
         this.state = this.mdp.get_start_state();
         this.joint_action = [OvercookedMDP.Direction.STAY, OvercookedMDP.Direction.STAY];
         this.player_colors = player_colors;
