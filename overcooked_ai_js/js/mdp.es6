@@ -330,7 +330,9 @@ export class OvercookedGridworld {
         COOK_TIME = OvercookedGridworld.COOK_TIME,
         DELIVERY_REWARD = OvercookedGridworld.DELIVERY_REWARD,
         num_items_for_soup = OvercookedGridworld.num_items_for_soup,
-        always_serve = false //when this is set to a string, its what's always served
+        always_serve = false, //when this is set to a string, its what's always served
+        grid_name = "none",
+        condition = "none"
     }) {
         this.terrain_mtx = terrain;
         this.terrain_pos_dict = this._get_terrain_type_pos_dict();
@@ -340,6 +342,39 @@ export class OvercookedGridworld {
         this.DELIVERY_REWARD = DELIVERY_REWARD
         this.always_serve = always_serve;
         this.num_items_for_soup = num_items_for_soup;
+        this.grid_name = grid_name;
+        this.condition = condition;
+    }
+
+    get_allowed_collision_cells() {
+        let cells = [];
+        if (this.grid_name == "square") {
+            if (this.condition == "legible") {
+                return [[3, 5]]
+            } else if (this.condition == "efficient") {
+                return []
+            } else if (this.condition == "legible_efficient") {
+                return []
+            } else if (this.condition == "random_median_entropy") {
+                return [[4, 5]]
+            } else if (this.condition == "random_median_efficient") {
+                return [[1, 1]]
+            }
+        } else if (this.grid_name == "hallway") {
+            if (this.condition == "legible") {
+                return [[3, 2]]
+            } else if (this.condition == "efficient") {
+                return [[2, 2]]
+            } else if (this.condition == "legible_efficient") {
+                return [[5, 2]]
+            } else if (this.condition == "random_median_entropy") {
+                return [[6, 1]]
+            } else if (this.condition == "random_median_efficient") {
+                return [[1, 2]]
+            }
+        } else {
+            return []
+        }
     }
 
     get_start_state (order_list) {
@@ -461,6 +496,7 @@ export class OvercookedGridworld {
                                         state: [new_state.order_list[0], 1, 0, [item_type]]
                                     }),
                                     i_pos);
+                                reward += 1;
                             }
                         }
                         else {
@@ -475,6 +511,7 @@ export class OvercookedGridworld {
                                 player.remove_object();
                                 items_in_pot.push(item_type);
                                 obj.state = [soup_type, num_items + 1, 0, items_in_pot];
+                                reward += 1;
                             }
                         }
                     }
@@ -494,11 +531,12 @@ export class OvercookedGridworld {
                         if ((current_order === 'any') || (soup_type === current_order)) {
                             new_state.order_list = new_state.order_list.slice(1);
                             reward += this.DELIVERY_REWARD;
-                        }
-                        if (this.always_serve) {
-                            new_state.order_list = [this.always_serve, ]
-                        } else {
-                            new_state.order_list.push(_.sample(ObjectState.SOUP_TYPES));
+
+                            if (this.always_serve) {
+                                new_state.order_list = [this.always_serve, ]
+                            } else {
+                                new_state.order_list.push(_.sample(ObjectState.SOUP_TYPES));
+                            }
                         }
                     }
                 }
@@ -539,8 +577,22 @@ export class OvercookedGridworld {
     }
 
     _handle_collisions(old_positions, new_positions) {
-        //only 2 players for nwo
-        if (this.is_collision(old_positions, new_positions)) {
+        //only 2 players for now
+        let [p1_old, p2_old] = old_positions;
+        let [p1_new, p2_new] = new_positions;
+        
+        let allowed_collision_cells = this.get_allowed_collision_cells();
+        for (let cell of allowed_collision_cells) {
+            if (_.isEqual(p1_new, cell) && _.isEqual(p2_new, cell)) {
+                return new_positions;
+            }
+        }
+        let crossing = _.isEqual(p1_new, p2_old) && _.isEqual(p1_old, p2_new);
+        let reach_same_from_different = _.isEqual(p1_new, p2_new) && !_.isEqual(p1_old, p2_new);
+        if (crossing || reach_same_from_different) {
+            return [p1_old, p2_new];
+        }
+        else if (this.is_collision(old_positions, new_positions)) {
             return old_positions
         }
         return new_positions
