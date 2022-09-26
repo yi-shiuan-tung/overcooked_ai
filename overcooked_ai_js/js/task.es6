@@ -56,6 +56,7 @@ export class OvercookedGame {
                 this.load.atlas("objects",
                     this.gameparent.assets_loc+"objects.png",
                     this.gameparent.assets_loc+"objects.json");
+                
             },
             create: function () {
                 // this.gameparent = gameparent;
@@ -75,6 +76,8 @@ export class OvercookedGame {
                     'P': 'pot.png',
                     'O': 'onions.png',
                     'T': 'tomatoes.png',
+                    'C': 'cabbages.png',
+                    'F': 'fishes.png',
                     'D': 'dishes.png',
                     'S': 'serve.png'
                 };
@@ -174,15 +177,19 @@ export class OvercookedGame {
                     let obj = state.objects[objpos];
                     let [x, y] = obj.position;
                     let terrain_type = this.mdp.get_terrain_type_at(obj.position);
-                    let spriteframe, souptype, n_ingredients;
+                    let spriteframe, souptype, n_ingredients, items_in_pot;
                     let cooktime = "";
                     if ((obj.name === 'soup') && (terrain_type === 'P')) {
-                        [souptype, n_ingredients, cooktime] = obj.state;
-                        souptype = souptype.split("-")[0];
+                        [souptype, n_ingredients, cooktime, items_in_pot] = obj.state;
                         // select pot sprite
                         if (cooktime <= this.mdp.COOK_TIME) {
-                            spriteframe =
-                                `soup-${souptype}-${n_ingredients}-cooking.png`;
+                            if (items_in_pot.length == 3) {
+                                spriteframe =
+                                `soup-${souptype}-cooking.png`;
+                            } else {
+                                spriteframe =
+                                `soup-${items_in_pot.join("-")}-cooking.png`;
+                            }
                         }
                         else if (cooktime >= this.mdp.explosion_time) {
                             spriteframe = 'pot-explosion.png';
@@ -244,6 +251,12 @@ export class OvercookedGame {
                         }
                         else if (obj.name === 'tomato') {
                             spriteframe = "tomato.png";
+                        }
+                        else if (obj.name === 'cabbage') {
+                            spriteframe = "cabbage.png";
+                        }
+                        else if (obj.name === 'fish') {
+                            spriteframe = "fish.png";
                         }
                         else if (obj.name === 'dish') {
                             spriteframe = "dish.png";
