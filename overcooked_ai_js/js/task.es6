@@ -56,7 +56,6 @@ export class OvercookedGame {
                 this.load.atlas("objects",
                     this.gameparent.assets_loc+"objects.png",
                     this.gameparent.assets_loc+"objects.json");
-                
             },
             create: function () {
                 // this.gameparent = gameparent;
@@ -79,7 +78,8 @@ export class OvercookedGame {
                     'C': 'cabbages.png',
                     'F': 'fishes.png',
                     'D': 'dishes.png',
-                    'S': 'serve.png'
+                    'S': 'serve.png',
+                    'Y': 'shared.png' // multiple agents can be in this tile at the same time
                 };
                 let pos_dict = this.mdp._get_terrain_type_pos_dict();
                 for (let ttype in pos_dict) {
@@ -232,7 +232,6 @@ export class OvercookedGame {
                     }
                     else if (obj.name === 'soup') {
                         [souptype, n_ingredients, cooktime] = obj.state;
-                        souptype = souptype.split("-")[0];
                         spriteframe = `soup-${souptype}-dish.png`;
                         let objsprite = this.add.sprite(
                             tileSize*x,

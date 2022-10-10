@@ -164,6 +164,7 @@ export class OvercookedState {
         players,
         objects,
         order_list = [],
+        soups_left = [], // soups still left to make from order_list
         pot_explosion=false,
         done=false
     }) {
@@ -184,6 +185,7 @@ export class OvercookedState {
         this.objects = objects;
         // assert all([o in OvercookedGridworld.ORDER_TYPES for o in order_list])
         this.order_list = order_list;
+        this.soups_left = soups_left;
         this.pot_explosion = pot_explosion;
         this.done = done;
     }
@@ -234,6 +236,7 @@ export class OvercookedState {
                 return [pos, obj.deepcopy()]
             })),
             order_list: this.order_list.map((i) => i),
+            soups_left: this.soups_left.map((i) => i),
             pot_explosion: this.pot_explosion
         })
     }
@@ -246,7 +249,8 @@ export class OvercookedState {
                 return new PlayerState(params)
             }),
             objects: {},
-            order_list: order_list
+            order_list: order_list,
+            soups_left: _.cloneDeep(order_list)
         })
     }
     static from_player_positions(player_positions, order_list) {
@@ -267,7 +271,8 @@ export function dictToState(state_dict) {
     return new OvercookedState({
         players: [dictToPlayerState(state_dict['players'][0]), dictToPlayerState(state_dict['players'][1])], 
         objects: state_dict['objects'], 
-        order_list: state_dict['order_list']
+        order_list: state_dict['order_list'],
+        soups_left: _.cloneDeep(state_dict['order_list'])
     })
 }
 
@@ -354,46 +359,6 @@ export class OvercookedGridworld {
         this.condition = condition;
     }
 
-    get_allowed_collision_cells() {
-        if (this.grid_name == "square") {
-            if (this.condition == "legible") {
-                return [[3, 5]]
-            } else if (this.condition == "efficient") {
-                return []
-            } else if (this.condition == "legible_efficient") {
-                return []
-            } else if (this.condition == "random_median_entropy") {
-                return [[4, 5]]
-            } else if (this.condition == "random_median_efficient") {
-                return [[1, 1]]
-            } else {
-                return []
-            }
-        } else if (this.grid_name == "hallway") {
-            if (this.condition == "legible") {
-                return [[3, 2]]
-            } else if (this.condition == "efficient") {
-                return [[2, 2]]
-            } else if (this.condition == "legible_efficient") {
-                return [[5, 2]]
-            } else if (this.condition == "random_median_entropy") {
-                return [[6, 1]]
-            } else if (this.condition == "random_median_efficient") {
-                return [[1, 2]]
-            } else {
-                return []
-            }
-        } else if (this.grid_name == "training") {
-            if (this.condition == "training0") {
-                return [[1, 2]]
-            } else if (this.condition == "training1") {
-                return [[1, 2]]
-            }
-        } else {
-            return []
-        }
-    }
-
     get_start_state (order_list) {
         if (this.always_serve) {
             order_list = [this.always_serve]
@@ -472,7 +437,10 @@ export class OvercookedGridworld {
 
             if (terrain_type === 'X') {
                 if (player.has_object()) {
-                    new_state.add_object(player.remove_object(), i_pos);
+                    if (!(new_state.has_object(i_pos) && new_state.get_object(i_pos).name == "soup")) {
+                        // don't replace soups
+                        new_state.add_object(player.remove_object(), i_pos);
+                    }
                 }
                 else if (!player.has_object() && new_state.has_object(i_pos)) {
                     player.set_object(new_state.remove_object(i_pos));
@@ -500,16 +468,19 @@ export class OvercookedGridworld {
                     if ((player.get_object().name === 'dish') && (new_state.has_object(i_pos))) {
                         let obj = new_state.get_object(i_pos);
                         assert(obj.name === 'soup', "Object in pot was not soup");
-                        let [temp, num_items, cook_time, items_in_pot] = obj.state;
+                        let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
                         if ((num_items === this.num_items_for_soup) && (cook_time >= this.COOK_TIME)) {
-                            player.remove_object(); //turnt he dish into the soup
+                            player.remove_object(); //turn the dish into the soup
                             player.set_object(new_state.remove_object(i_pos));
+
+                            const index = new_state.soups_left.indexOf(soup_type);
+                            new_state.soups_left.splice(index, 1);
                         }
                     }
                     else if (_.includes(['onion', 'tomato', 'cabbage', 'fish'], player.get_object().name)) {
                         let item_type = player.get_object().name;
                         
-                        for (let order of new_state.order_list) {
+                        for (let order of new_state.soups_left) {
                             let success = false;
                             let recipe = order.split("-");
                             
@@ -528,13 +499,22 @@ export class OvercookedGridworld {
                                 }
                             } else {
                                 let obj = new_state.get_object(i_pos);
-                                // assert(obj.name === 'soup', "Object in pot was not soup")
+                                assert(obj.name === 'soup', "Object in pot was not soup")
                                 let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
+                                let recipe_copy = _.cloneDeep(recipe);
+                                let feasible = true;
                                 for (const item of items_in_pot) {
-                                    const index = recipe.indexOf(item);
-                                    recipe.splice(index, 1);
+                                    const index = recipe_copy.indexOf(item);
+                                    if (index == -1) {
+                                        feasible = false;
+                                        break;
+                                    }
+                                    recipe_copy.splice(index, 1);
                                 }
-                                if ((num_items < this.num_items_for_soup) && _.includes(recipe,  item_type)) {
+                                if (!feasible) {
+                                    continue;
+                                }
+                                if ((num_items < this.num_items_for_soup) && _.includes(recipe_copy,  item_type)) {
                                     player.remove_object();
                                     items_in_pot.push(item_type);
                                     obj.state = [order, num_items + 1, 0, items_in_pot];
@@ -563,7 +543,9 @@ export class OvercookedGridworld {
                         reward += this.DELIVERY_REWARD;
 
                         if (new_state.order_list.length == 0) {
-                            new_state.done = true;
+                            // new_state.done = true;
+                            new_state.soups_left = ['tomato-tomato-onion', 'cabbage-onion-onion', 'fish-fish-fish'];
+                            new_state.order_list = ['tomato-tomato-onion', 'cabbage-onion-onion', 'fish-fish-fish'];
                         }
                     }
                 }
@@ -607,12 +589,6 @@ export class OvercookedGridworld {
         //only 2 players for now
         let [p1_old, p2_old] = old_positions;
         let [p1_new, p2_new] = new_positions;
-        
-        let allowed_collision_cells = this.get_allowed_collision_cells();
-        for (let cell of allowed_collision_cells) {
-            if (_.isEqual(p1_new, cell) && _.isEqual(p2_new, cell)) {
-                return new_positions;
-            }
         }
         let crossing = _.isEqual(p1_new, p2_old) && _.isEqual(p1_old, p2_new);
         let reach_same_from_different = _.isEqual(p1_new, p2_new) && !_.isEqual(p1_old, p2_new);
@@ -659,7 +635,7 @@ export class OvercookedGridworld {
     }
 
     get_valid_player_positions () {
-        return this.terrain_pos_dict[' '];
+        return this.terrain_pos_dict[' '].concat(this.terrain_pos_dict['Y']);
     }
 
     _get_terrain_type_pos_dict () {
