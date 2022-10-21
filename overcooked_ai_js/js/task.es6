@@ -182,7 +182,7 @@ export class OvercookedGame {
                     if ((obj.name === 'soup') && (terrain_type === 'P')) {
                         [souptype, n_ingredients, cooktime, items_in_pot] = obj.state;
                         // select pot sprite
-                        if (cooktime <= this.mdp.COOK_TIME) {
+                        if (cooktime < this.mdp.COOK_TIME) {
                             if (items_in_pot.length == 3) {
                                 spriteframe =
                                 `soup-${souptype}-cooking.png`;
@@ -219,7 +219,7 @@ export class OvercookedGame {
                                 tileSize*(y+.6),
                                 String(cooktime),
                                 {
-                                    font: "25px Arial",
+                                    font: "20px Arial",
                                     fill: "red",
                                     align: "center",
                                 }
@@ -274,15 +274,18 @@ export class OvercookedGame {
                 }
 
                 //draw order list
-                let order_list = "Orders: "+state.order_list.join(", ");
+                let order_list = "Orders: " + state.order_list.join(", ");
                 if (typeof(sprites['order_list']) !== 'undefined') {
-                    sprites['order_list'].setText(order_list);
-                }
-                else {
+                    if (state.order_list.length == 0) {
+                        sprites['order_list'].setText("You finished!");
+                    } else {
+                        sprites['order_list'].setText(order_list);
+                    }
+                } else {
                     sprites['order_list'] = this.add.text(
                         5, 5, order_list,
                         {
-                            font: "20px Arial",
+                            font: "18px Arial",
                             fill: "yellow",
                             align: "left"
                         }
@@ -298,7 +301,7 @@ export class OvercookedGame {
                     sprites['score'] = this.add.text(
                         5, 25, score,
                         {
-                            font: "20px Arial",
+                            font: "18px Arial",
                             fill: "yellow",
                             align: "left"
                         }
@@ -314,7 +317,7 @@ export class OvercookedGame {
                     sprites['time_left'] = this.add.text(
                         5, 45, time_left,
                         {
-                            font: "20px Arial",
+                            font: "18px Arial",
                             fill: "yellow",
                             align: "left"
                         }
