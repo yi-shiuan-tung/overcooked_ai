@@ -543,9 +543,9 @@ export class OvercookedGridworld {
                         reward += this.DELIVERY_REWARD;
 
                         if (new_state.order_list.length == 0) {
-                            // new_state.done = true;
-                            new_state.soups_left = ['tomato-tomato-onion', 'cabbage-onion-onion', 'fish-fish-fish'];
-                            new_state.order_list = ['tomato-tomato-onion', 'cabbage-onion-onion', 'fish-fish-fish'];
+                            new_state.done = true;
+                            // new_state.soups_left = ['tomato-tomato-onion', 'cabbage-onion-onion', 'fish-fish-fish'];
+                            // new_state.order_list = ['tomato-tomato-onion', 'cabbage-onion-onion', 'fish-fish-fish'];
                         }
                     }
                 }
@@ -587,15 +587,7 @@ export class OvercookedGridworld {
 
     _handle_collisions(old_positions, new_positions) {
         //only 2 players for now
-        let [p1_old, p2_old] = old_positions;
-        let [p1_new, p2_new] = new_positions;
-        }
-        let crossing = _.isEqual(p1_new, p2_old) && _.isEqual(p1_old, p2_new);
-        let reach_same_from_different = _.isEqual(p1_new, p2_new) && !_.isEqual(p1_old, p2_new);
-        if (crossing || reach_same_from_different) {
-            return [p1_old, p2_new];
-        }
-        else if (this.is_collision(old_positions, new_positions)) {
+        if (this.is_collision(old_positions, new_positions)) {
             return old_positions
         }
         return new_positions
@@ -727,7 +719,7 @@ export class OvercookedGridworld {
 
     static from_grid (grid, params) {
         grid = grid.map((r) => _.map(r, (c) => c));
-        let player_pos = [null, null];
+        let player_pos = [null];
         for (let y = 0; y < grid.length; y++) {
             for (let x = 0; x < grid[0].length; x++) {
                 let c = grid[y][x];
