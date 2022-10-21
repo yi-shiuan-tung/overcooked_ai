@@ -141,11 +141,11 @@ export class ObjectState {
         }
         if (this.name === 'soup') {
             let [soup_type, num_items, cook_time, items_in_pot] = this.state;
-            let valid_soup_type = _.includes(ObjectState.SOUP_TYPES, soup_type);
+            // let valid_soup_type = _.includes(ObjectState.SOUP_TYPES, soup_type);
             let valid_item_num = (1 <= num_items) && (num_items <= 3);
             let valid_cook_time = 0 <= cook_time;
             let valid_items = num_items == items_in_pot.length;
-            return valid_soup_type && valid_item_num && valid_cook_time && valid_items;
+            return valid_item_num && valid_cook_time && valid_items;
         }
         return false
     }
@@ -269,8 +269,8 @@ export function dictToState(state_dict) {
     state_dict['objects'] = object_dict
 
     return new OvercookedState({
-        players: [dictToPlayerState(state_dict['players'][0]), dictToPlayerState(state_dict['players'][1])], 
-        objects: state_dict['objects'], 
+        players: [dictToPlayerState(state_dict['players'][0]), dictToPlayerState(state_dict['players'][1])],
+        objects: state_dict['objects'],
         order_list: state_dict['order_list'],
         soups_left: _.cloneDeep(state_dict['order_list'])
     })
@@ -284,8 +284,8 @@ export function dictToPlayerState(player_dict) {
         player_dict['held_object'] = dictToObjectState(player_dict['held_object'])
      }
      return new PlayerState({
-        position: player_dict['position'], 
-        orientation: player_dict['orientation'], 
+        position: player_dict['position'],
+        orientation: player_dict['orientation'],
         held_object: player_dict['held_object']
      })
     }
@@ -296,17 +296,17 @@ export function dictToObjectState(object_dict) {
     }
     return new ObjectState(
         {name: object_dict['name'],
-        position: object_dict['position'], 
+        position: object_dict['position'],
         state: object_dict['state']
         })
 }
 
 
 export function lookupActions(actions_arr) {
-    let actions = []; 
+    let actions = [];
     actions_arr.forEach(function (item, index) {
         if (item == "interact") {
-            item = Action.INTERACT; 
+            item = Action.INTERACT;
         }
         if (arraysEqual(Direction.STAY, item) || item == "stay") {
             item = Direction.STAY;
@@ -315,7 +315,7 @@ export function lookupActions(actions_arr) {
     }
         )
     return actions;
-    
+
 }
 
 function arraysEqual(a, b) {
@@ -473,34 +473,9 @@ export class OvercookedGridworld {
                             player.remove_object(); //turn the dish into the soup
                             player.set_object(new_state.remove_object(i_pos));
 
-                            const index = new_state.soups_left.indexOf(soup_type);
-                            new_state.soups_left.splice(index, 1);
-                        }
-                    }
-                    else if (_.includes(['onion', 'tomato', 'cabbage', 'fish'], player.get_object().name)) {
-                        let item_type = player.get_object().name;
-                        
-                        for (let order of new_state.soups_left) {
-                            let success = false;
-                            let recipe = order.split("-");
-                            
-                            if (!new_state.has_object(i_pos)) {
-                                if (_.includes(recipe, item_type)) {
-                                    player.remove_object();
-                                    new_state.add_object(
-                                        new ObjectState({
-                                            name: 'soup',
-                                            position: i_pos,
-                                            state: [order, 1, 0, [item_type]]
-                                        }),
-                                        i_pos);
-                                    reward += 1;
-                                    success = true;
-                                }
-                            } else {
-                                let obj = new_state.get_object(i_pos);
-                                assert(obj.name === 'soup', "Object in pot was not soup")
-                                let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
+                            let soup_order;
+                            for (let order of new_state.soups_left) {
+                                let recipe = order.split("-");
                                 let recipe_copy = _.cloneDeep(recipe);
                                 let feasible = true;
                                 for (const item of items_in_pot) {
@@ -511,20 +486,68 @@ export class OvercookedGridworld {
                                     }
                                     recipe_copy.splice(index, 1);
                                 }
-                                if (!feasible) {
-                                    continue;
+
+                                if (feasible) {
+                                    soup_order = order;
+                                    break;
                                 }
-                                if ((num_items < this.num_items_for_soup) && _.includes(recipe_copy,  item_type)) {
-                                    player.remove_object();
-                                    items_in_pot.push(item_type);
-                                    obj.state = [order, num_items + 1, 0, items_in_pot];
+                            }
+
+                            if (soup_order) {
+                                const index = new_state.soups_left.indexOf(soup_order);
+                                new_state.soups_left.splice(index, 1);
+                            }
+                        }
+                    }
+                    else if (_.includes(['onion', 'tomato', 'cabbage', 'fish'], player.get_object().name)) {
+                        let item_type = player.get_object().name;
+
+                        if (!new_state.has_object(i_pos)) {
+                            player.remove_object();
+                            new_state.add_object(
+                                new ObjectState({
+                                    name: 'soup',
+                                    position: i_pos,
+                                    state: [item_type, 1, 0, [item_type]]
+                                }),
+                                i_pos);
+                            reward += 1
+                        } else {
+                            let obj = new_state.get_object(i_pos);
+                            assert(obj.name === 'soup', "Object in pot was not soup")
+                            let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
+
+                            if (num_items < this.num_items_for_soup) {
+
+                                let ingredients_required = [];
+                                for (let order of new_state.soups_left) {
+                                    let recipe = order.split("-");
+                                    let recipe_copy = _.cloneDeep(recipe);
+                                    let feasible = true;
+                                    for (const item of items_in_pot) {
+                                        const index = recipe_copy.indexOf(item);
+                                        if (index == -1) {
+                                            feasible = false;
+                                            break;
+                                        }
+                                        recipe_copy.splice(index, 1);
+                                    }
+
+                                    if (feasible) {
+                                        ingredients_required = ingredients_required.concat(recipe_copy);
+                                    }
+                                }
+                                if (_.includes(ingredients_required, item_type)){
+                                    // give reward if the correct ingredient is placed in the pot
                                     reward += 1;
-                                    success = true;
                                 }
+
+                                // update state
+                                player.remove_object();
+                                items_in_pot.push(item_type);
+                                obj.state = [soup_type+"-"+item_type, num_items + 1, 0, items_in_pot];
                             }
-                            if (success) {
-                                break;
-                            }
+
                         }
                     }
                 }
@@ -532,15 +555,39 @@ export class OvercookedGridworld {
                     let obj = player.get_object();
                     if (obj.name === 'soup') {
                         let [soup_type, num_items, cook_time, items_in_pot] = obj.state;
-                        assert(_.includes(ObjectState.SOUP_TYPES, soup_type));
+                        // assert(_.includes(ObjectState.SOUP_TYPES, soup_type));
                         assert(num_items === this.num_items_for_soup &&
                                cook_time >= this.COOK_TIME &&
                                cook_time < this.explosion_time);
                         player.remove_object();
 
-                        const index = new_state.order_list.indexOf(soup_type);
-                        new_state.order_list.splice(index, 1);
-                        reward += this.DELIVERY_REWARD;
+                        let soup_order;
+                        for (let order of new_state.order_list) {
+                            let recipe = order.split("-");
+                            let recipe_copy = _.cloneDeep(recipe);
+                            let feasible = true;
+                            for (const item of items_in_pot) {
+                                const index = recipe_copy.indexOf(item);
+                                if (index == -1) {
+                                    feasible = false;
+                                    break;
+                                }
+                                recipe_copy.splice(index, 1);
+                            }
+
+                            if (feasible) {
+                                soup_order = order;
+                                break;
+                            }
+                        }
+
+                        if (soup_order) {
+                            const index = new_state.order_list.indexOf(soup_order);
+                            new_state.order_list.splice(index, 1);
+                            reward += this.DELIVERY_REWARD;
+                        } else {
+                            console.log("wrong soup delivered")
+                        }
 
                         if (new_state.order_list.length == 0) {
                             new_state.done = true;
@@ -741,7 +788,7 @@ export class OvercookedGridworld {
 OvercookedGridworld.COOK_TIME = 5;
 OvercookedGridworld.DELIVERY_REWARD = 20;
 OvercookedGridworld.ORDER_TYPES = ObjectState.SOUP_TYPES + ['any'];
-OvercookedGridworld.num_items_for_soup = 3; 
+OvercookedGridworld.num_items_for_soup = 3;
 
 let str_to_array = (val) => {
     if (Array.isArray(val)) {
