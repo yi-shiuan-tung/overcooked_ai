@@ -274,7 +274,7 @@ export class OvercookedGame {
                 }
 
                 //draw order list
-                let order_list = "Orders: " + state.order_list.join(", ");
+                let order_list = "Recipes: " + state.order_list.join(", ");
                 if (typeof(sprites['order_list']) !== 'undefined') {
                     if (state.order_list.length == 0) {
                         sprites['order_list'].setText("You finished!");
